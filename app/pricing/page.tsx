@@ -4,6 +4,9 @@ import { useState } from "react";
 import { PLANS, FREE_TIER } from "@/lib/products";
 import { Marquee } from "@/components/marquee";
 import Link from "next/link";
+import { Flame, Crown, Zap, Shield, Clock, MessageCircle, Loader2 } from "lucide-react";
+
+type PaymentMethod = "instamojo" | "razorpay";
 
 declare global {
   interface Window {
@@ -36,13 +39,48 @@ interface RazorpayResponse {
 
 export default function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [showForm, setShowForm] = useState<string | null>(null);
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "" });
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("instamojo");
 
-  const handlePayment = async (planId: string) => {
+  const handleInstamojo = async (planId: string) => {
+    if (!formData.name || !formData.email) {
+      alert("Please fill in your name and email");
+      return;
+    }
+
     setLoading(planId);
 
     try {
-      // Create order
+      const res = await fetch("/api/instamojo/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
+      } else {
+        throw new Error(data.error || "Failed to create payment");
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+      alert("Payment failed. Please try again.");
+      setLoading(null);
+    }
+  };
+
+  const handleRazorpay = async (planId: string) => {
+    setLoading(planId);
+
+    try {
       const orderRes = await fetch("/api/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -57,7 +95,6 @@ export default function PricingPage() {
 
       const plan = PLANS.find((p) => p.id === planId);
 
-      // Initialize Razorpay
       const options: RazorpayOptions = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
         amount: orderData.amount,
@@ -66,7 +103,6 @@ export default function PricingPage() {
         description: `${plan?.name} - Premium Access`,
         order_id: orderData.orderId,
         handler: async (response: RazorpayResponse) => {
-          // Verify payment
           const verifyRes = await fetch("/api/verify-payment", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -80,15 +116,12 @@ export default function PricingPage() {
           });
 
           if (verifyRes.ok) {
-            setSuccess(true);
-            setTimeout(() => {
-              window.location.href = "/";
-            }, 2000);
+            window.location.href = "/payment/success?payment_status=success";
           }
         },
         prefill: {
-          name: "",
-          email: "",
+          name: formData.name,
+          email: formData.email,
         },
         theme: {
           color: "#FACC15",
@@ -110,21 +143,13 @@ export default function PricingPage() {
     }
   };
 
-  if (success) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-8xl mb-4">&#127881;</div>
-          <h1 className="text-4xl font-black text-foreground mb-2">
-            PAYMENT SUCCESSFUL!
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            Welcome to the premium squad. Redirecting...
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const handlePayment = async (planId: string) => {
+    if (paymentMethod === "instamojo") {
+      await handleInstamojo(planId);
+    } else {
+      await handleRazorpay(planId);
+    }
+  };
 
   return (
     <>
@@ -139,13 +164,18 @@ export default function PricingPage() {
         <div className="container mx-auto px-4 py-12">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 font-mono"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 font-mono brutal-border brutal-shadow-sm px-4 py-2 bg-card"
           >
             &larr; Back to roasting
           </Link>
 
           <div className="text-center mb-12">
-            <h1 className="text-5xl md:text-7xl font-black text-foreground mb-4">
+            <div className="inline-flex items-center gap-2 bg-primary/20 px-4 py-2 brutal-border mb-6">
+              <Crown className="h-5 w-5 text-primary" />
+              <span className="font-bold">JOIN 10K+ PRO ROASTERS</span>
+            </div>
+            
+            <h1 className="text-5xl md:text-7xl font-black text-foreground mb-4 text-balance">
               UPGRADE YOUR
               <br />
               <span className="text-primary">ROAST GAME</span>
@@ -158,8 +188,8 @@ export default function PricingPage() {
           </div>
 
           {/* Free Tier */}
-          <div className="max-w-md mx-auto mb-8">
-            <div className="border-2 border-border bg-card p-6 shadow-brutal">
+          <div className="max-w-md mx-auto mb-12">
+            <div className="brutal-border brutal-shadow bg-card p-6">
               <div className="text-center mb-4">
                 <span className="text-sm font-mono text-muted-foreground">
                   FREE TIER
@@ -178,14 +208,14 @@ export default function PricingPage() {
                     key={i}
                     className="flex items-center gap-2 text-muted-foreground"
                   >
-                    <span className="text-destructive">&#10005;</span>
+                    <span className="text-muted-foreground">-</span>
                     {feature}
                   </li>
                 ))}
               </ul>
               <Link
                 href="/"
-                className="block w-full text-center py-3 border-2 border-border font-bold hover:bg-muted transition-colors"
+                className="block w-full text-center py-3 brutal-border font-bold hover:bg-muted transition-colors"
               >
                 STAY FREE
               </Link>
@@ -197,14 +227,14 @@ export default function PricingPage() {
             {PLANS.map((plan) => (
               <div
                 key={plan.id}
-                className={`relative border-4 bg-card p-8 shadow-brutal-lg transition-transform hover:-translate-y-1 ${
+                className={`relative brutal-border bg-card p-8 transition-transform hover:-translate-y-1 ${
                   plan.popular
-                    ? "border-primary bg-primary/5"
-                    : "border-border"
+                    ? "border-primary bg-primary/5 brutal-shadow-lg"
+                    : "brutal-shadow"
                 }`}
               >
                 {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-1 font-black text-sm">
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-1 font-black text-sm brutal-border">
                     MOST POPULAR
                   </div>
                 )}
@@ -225,6 +255,11 @@ export default function PricingPage() {
                       {plan.duration}
                     </span>
                   </p>
+                  {plan.savings && (
+                    <span className="inline-block mt-2 bg-accent text-accent-foreground text-sm font-bold px-3 py-1">
+                      {plan.savings}
+                    </span>
+                  )}
                 </div>
 
                 <ul className="space-y-3 mb-8">
@@ -233,44 +268,133 @@ export default function PricingPage() {
                       key={i}
                       className="flex items-center gap-2 text-foreground"
                     >
-                      <span className="text-accent">&#10003;</span>
+                      <span className="text-accent font-bold">✓</span>
                       {feature}
                     </li>
                   ))}
                 </ul>
 
-                <button
-                  onClick={() => handlePayment(plan.id)}
-                  disabled={loading !== null}
-                  className={`w-full py-4 font-black text-lg transition-all ${
-                    plan.popular
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                      : "bg-foreground text-background hover:bg-foreground/90"
-                  } disabled:opacity-50 disabled:cursor-not-allowed shadow-brutal active:translate-y-1 active:shadow-none`}
-                >
-                  {loading === plan.id ? (
+                {showForm === plan.id ? (
+                  <div className="space-y-4">
+                    <input
+                      type="text"
+                      placeholder="Your Name"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      className="w-full p-3 brutal-border bg-background font-mono"
+                    />
+                    <input
+                      type="email"
+                      placeholder="Email Address"
+                      value={formData.email}
+                      onChange={(e) =>
+                        setFormData({ ...formData, email: e.target.value })
+                      }
+                      className="w-full p-3 brutal-border bg-background font-mono"
+                    />
+                    <input
+                      type="tel"
+                      placeholder="Phone (optional)"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
+                      className="w-full p-3 brutal-border bg-background font-mono"
+                    />
+                    
+                    {/* Payment Method Selector */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPaymentMethod("instamojo")}
+                        className={`flex-1 p-3 brutal-border font-bold text-sm transition-colors ${
+                          paymentMethod === "instamojo"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted"
+                        }`}
+                      >
+                        Instamojo
+                      </button>
+                      <button
+                        onClick={() => setPaymentMethod("razorpay")}
+                        className={`flex-1 p-3 brutal-border font-bold text-sm transition-colors ${
+                          paymentMethod === "razorpay"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted"
+                        }`}
+                      >
+                        Razorpay
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() => handlePayment(plan.id)}
+                      disabled={loading !== null}
+                      className="w-full py-4 bg-destructive text-destructive-foreground font-black text-lg brutal-border brutal-shadow brutal-shadow-hover disabled:opacity-50"
+                    >
+                      {loading === plan.id ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          PROCESSING...
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-2">
+                          <Zap className="h-5 w-5" />
+                          PAY {plan.displayPrice}
+                        </span>
+                      )}
+                    </button>
+                    
+                    <button
+                      onClick={() => setShowForm(null)}
+                      className="w-full py-2 text-muted-foreground text-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowForm(plan.id)}
+                    className={`w-full py-4 font-black text-lg transition-all brutal-border brutal-shadow brutal-shadow-hover ${
+                      plan.popular
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "bg-foreground text-background hover:bg-foreground/90"
+                    }`}
+                  >
                     <span className="inline-flex items-center gap-2">
-                      <span className="animate-spin">&#9881;</span>
-                      PROCESSING...
+                      <Flame className="h-5 w-5" />
+                      GET {plan.name.toUpperCase()}
                     </span>
-                  ) : (
-                    `GET ${plan.name.toUpperCase()}`
-                  )}
-                </button>
+                  </button>
+                )}
               </div>
             ))}
           </div>
 
           {/* Trust badges */}
           <div className="mt-16 text-center">
-            <p className="text-muted-foreground mb-4">
-              Secured by Razorpay. Cancel anytime.
-            </p>
-            <div className="flex justify-center gap-8 text-muted-foreground">
-              <span>&#128274; Secure Payment</span>
-              <span>&#9889; Instant Access</span>
-              <span>&#128172; 24/7 Support</span>
+            <div className="flex flex-wrap justify-center gap-6 text-muted-foreground mb-6">
+              <span className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Secure Payment
+              </span>
+              <span className="flex items-center gap-2">
+                <Zap className="h-5 w-5" />
+                Instant Access
+              </span>
+              <span className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Cancel Anytime
+              </span>
+              <span className="flex items-center gap-2">
+                <MessageCircle className="h-5 w-5" />
+                24/7 Support
+              </span>
             </div>
+            <p className="text-sm text-muted-foreground">
+              Secured by Instamojo & Razorpay. Your payment details are safe.
+            </p>
           </div>
         </div>
 
