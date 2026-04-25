@@ -37,6 +37,16 @@ Your format:
 Keep it under 400 words. Focus on actionable insights.`,
 };
 
+const premiumAddition = `
+
+PREMIUM ANALYSIS BONUS:
+Since this is a PREMIUM user, also include:
+- RESUME SCORE: X/100 with breakdown (Content: X/25, Format: X/25, Impact: X/25, Keywords: X/25)
+- TOP 3 KEYWORDS TO ADD: Specific keywords for ATS optimization
+- REWRITE SUGGESTIONS: 2-3 bullet point rewrites that are stronger
+- INDUSTRY COMPARISON: How this compares to top resumes in their field
+- 30-DAY ACTION PLAN: Quick steps to improve`;
+
 export async function POST(request: Request) {
   const body = await request.json();
   
@@ -45,6 +55,7 @@ export async function POST(request: Request) {
   const lastUserMessage = messages.filter((m: { role: string }) => m.role === "user").pop();
   const resume = lastUserMessage?.content || body.resume || "";
   const tone = body.tone || "savage";
+  const isPremium = body.isPremium || false;
 
   if (!resume || resume.trim().length < 50) {
     return new Response(
@@ -53,7 +64,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const systemPrompt = tonePrompts[tone as keyof typeof tonePrompts] || tonePrompts.savage;
+  let systemPrompt = tonePrompts[tone as keyof typeof tonePrompts] || tonePrompts.savage;
+  
+  // Add premium features to the prompt
+  if (isPremium) {
+    systemPrompt += premiumAddition;
+  }
 
   const result = streamText({
     model: "openai/gpt-4o-mini",
@@ -65,7 +81,7 @@ export async function POST(request: Request) {
       },
     ],
     temperature: 0.8,
-    maxTokens: 1000,
+    maxTokens: isPremium ? 1500 : 800,
   });
 
   return result.toDataStreamResponse();
