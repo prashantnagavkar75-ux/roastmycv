@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 50 30% 92%;
+  --foreground: 0 0% 5%;
+  --primary: 51 100% 50%;
+  --primary-foreground: 0 0% 5%;
+  --secondary: 180 70% 65%;
+  --secondary-foreground: 0 0% 5%;
+  --accent: 330 85% 60%;
+  --accent-foreground: 0 0% 100%;
+  --muted: 40 20% 85%;
+  --muted-foreground: 0 0% 40%;
+  --destructive: 0 85% 60%;
+  --border: 0 0% 10%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Brutalist neo-gen-z styling */
+.brutal-border {
+  @apply border-4 border-foreground;
+}
+
+.brutal-shadow {
+  box-shadow: 6px 6px 0px hsl(var(--foreground));
+}
+
+.brutal-shadow-sm {
+  box-shadow: 4px 4px 0px hsl(var(--foreground));
+}
+
+.brutal-shadow-hover {
+  @apply transition-all duration-150;
+}
+
+.brutal-shadow-hover:hover {
+  box-shadow: 8px 8px 0px hsl(var(--foreground));
+  transform: translate(-2px, -2px);
+}
+
+.brutal-shadow-hover:active {
+  box-shadow: 2px 2px 0px hsl(var(--foreground));
+  transform: translate(2px, 2px);
+}
+
+/* Gradient text */
+.gradient-text {
+  @apply bg-clip-text text-transparent;
+  background-image: linear-gradient(
+    90deg,
+    hsl(var(--primary)) 0%,
+    hsl(var(--accent)) 50%,
+    hsl(var(--secondary)) 100%
+  );
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-muted;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-foreground;
+}
+
+/* Selection */
+::selection {
+  @apply bg-primary text-primary-foreground;
+}
